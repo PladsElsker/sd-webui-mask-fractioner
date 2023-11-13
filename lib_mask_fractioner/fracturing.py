@@ -10,6 +10,7 @@ from PIL import Image
 from rectpack import newPacker, PackingBin
 
 from lib_mask_fractioner.webui_inpaint_ratio_hook import WebuiInpaintRatioHook
+from lib_mask_fractioner.mask_processing import blur, mask_interpolation
 
 
 @dataclass
@@ -48,6 +49,7 @@ class MaskPanel:
     component_masks: Sequence[MaskData]
     cropped_masks: Optional[Sequence[MaskData]] = None
     rearranged_masks: Optional[Sequence[MaskData]] = None
+    size: Optional[Sequence[int]] = None
 
 
 @dataclass
@@ -55,14 +57,13 @@ class RearrangedImageData:
     panel: MaskPanel
     images: Sequence
     mask: Image
-    computed_bucket_size: Sequence[int]
 
 
 def fracture_images(images, mask, padding, components_margin, allow_rotations, dead_space_color):
     mask_panel = compute_mask_cca(mask)
     compute_crops(mask_panel, padding)
-    new_image_size = compute_rearrangement(mask_panel, components_margin, allow_rotations)
-    return rearrange_images_and_mask(mask_panel, images, new_image_size, dead_space_color)
+    compute_rearrangement(mask_panel, components_margin, allow_rotations)
+    return rearrange_images_and_mask(mask_panel, images, dead_space_color)
 
 
 def compute_mask_cca(mask):
@@ -184,16 +185,16 @@ def compute_rearrangement(mask_panel, components_margin, allow_rotations, grow_f
         bin_width = int(bin_width / (1 + bin_error_y))
         bin_height = int(bin_height / (1 + bin_error_y))
 
-    return bin_height, bin_width
+    mask_panel.size = (bin_height, bin_width)
 
 
-def rearrange_images_and_mask(mask_panel, images, new_image_size, dead_space_color):
+def rearrange_images_and_mask(mask_panel, images, dead_space_color):
     dead_space_color = np.array([int(dead_space_color[i:i+2], 16) for i in (1, 3, 5)])
     rearranged_images = []
 
     for img in images:
         img = np.array(img.convert('RGB'))
-        rearranged = np.full([new_image_size[0], new_image_size[1], 3], dead_space_color).astype(np.uint8)
+        rearranged = np.full([mask_panel.size[0], mask_panel.size[1], 3], dead_space_color).astype(np.uint8)
         for initial, target in zip(mask_panel.cropped_masks, mask_panel.rearranged_masks):
             if target.rotated:
                 rearranged[target.area] = np.rot90(img[initial.area])
@@ -202,28 +203,29 @@ def rearrange_images_and_mask(mask_panel, images, new_image_size, dead_space_col
 
         rearranged_images.append(Image.fromarray(rearranged).convert('RGB'))
 
-    rearranged = np.full(new_image_size, 0).astype(np.uint8)
+    rearranged = np.full(mask_panel.size, 0).astype(np.uint8)
     for target in mask_panel.rearranged_masks:
         rearranged[target.area] = target.mask[:, :]
 
     rearranged_mask = Image.fromarray(rearranged).convert('L')
 
-    return RearrangedImageData(mask_panel, rearranged_images, rearranged_mask, new_image_size)
+    return RearrangedImageData(mask_panel, rearranged_images, rearranged_mask)
 
 
-def emplace_back_images(arrangement_panel: MaskPanel, original_images, inpainted_images):
+def emplace_back_images(arrangement_panel: MaskPanel, original_images, inpainted_images, p):
     rearranged_images = []
 
-    for img, inpainted in zip([original_images[0]]*inpainted_images.shape[0], inpainted_images):
+    for img, inpainted in zip([original_images[0]]*len(inpainted_images), inpainted_images):
         img = np.array(img.convert('RGB'))
-        inpainted = torch.permute(inpainted, (2, 1, 0))
-        inpainted = cv2.resize(inpainted.cpu().numpy(), img.shape[:2], interpolation=cv2.INTER_AREA)
+        inpainted = (inpainted.permute(1, 2, 0).cpu() * 255).numpy().astype(np.uint8)
+        inpainted = cv2.resize(inpainted, (arrangement_panel.size[1], arrangement_panel.size[0]))
 
         for initial, target in zip(arrangement_panel.cropped_masks, arrangement_panel.rearranged_masks):
-            if target.rotated:
-                img[initial.area] = np.rot90(inpainted)[target.area]
-            else:
-                img[initial.area] = inpainted[target.area]
+            inpaint_region = np.rot90(inpainted[target.area], k=-1) if target.rotated else inpainted[target.area]
+            mask_region = np.rot90(target.mask, k=-1) if target.rotated else target.mask
+            mask_region = blur(mask_region, p.mask_blur)
+            inpaint_region = mask_interpolation(mask_region, img[initial.area], inpaint_region).astype(np.uint8)
+            img[initial.area] = inpaint_region
 
         rearranged_images.append(img)
 

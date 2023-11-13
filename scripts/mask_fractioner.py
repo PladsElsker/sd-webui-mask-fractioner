@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 import modules.scripts as scripts
@@ -47,6 +48,7 @@ class MaskFractionerScript(scripts.Script):
         self.unfractioned_images = p.init_images
         self.mask = p.image_mask
 
+
         if self.mask is None:
             return
 
@@ -60,24 +62,24 @@ class MaskFractionerScript(scripts.Script):
         )
         p.init_images, p.image_mask = self.rearranged_image_data.images, self.rearranged_image_data.mask
 
-    def postprocess_batch(self, p, enabled, padding, components_margin, allow_rotations, dead_space_color, **kwargs):
+    def postprocess_batch_list(self, p, pp, enabled, padding, components_margin, allow_rotations, dead_space_color, **kwargs):
         if not enabled:
             return
 
         if self.mask is None:
             return
 
-        images = kwargs.get('images', [])
-
         processed = emplace_back_images(
             arrangement_panel=self.rearranged_image_data.panel,
             original_images=self.unfractioned_images,
-            inpainted_images=images
+            inpainted_images=pp.images,
+            p=p
         )
 
-        processed_list = [torch.from_numpy(img) for img in processed]
-        processed_tensor = torch.stack(processed_list)
-        images[:] = processed_tensor
+        pp.images.clear()
+        pp.images.extend([torch.tensor(img.transpose(2, 0, 1) / 255) for img in processed])
+
+        p.overlay_images = []
 
 
 setup_script_callbacks()
