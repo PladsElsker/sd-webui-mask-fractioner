@@ -59,7 +59,7 @@ class RearrangedImageData:
     mask: Image
 
 
-def fracture_images(images, mask, padding, components_margin, allow_rotations, dead_space_color):
+def fracture_images(images, mask, padding, components_margin, allow_rotations, dead_space_color, minimize_dead_space):
     mask_panel = compute_mask_cca(mask)
     compute_crops(mask_panel, padding)
     compute_rearrangement(mask_panel, components_margin, allow_rotations)
@@ -128,11 +128,7 @@ def compute_rearrangement(mask_panel, components_margin, allow_rotations, grow_f
     rectangles = [[d + components_margin for d in cropped.size] for cropped in mask_panel.cropped_masks]
 
     total_area = sum(w * h for w, h in rectangles)
-    default_ratio = mask_panel.component_masks[0].mask.shape[1] / mask_panel.component_masks[0].mask.shape[0]
-    if WebuiInpaintRatioHook.ratio is None:
-        bin_width = math.sqrt(total_area * default_ratio)
-    else:
-        bin_width = math.sqrt(total_area * WebuiInpaintRatioHook.ratio)
+    bin_width = math.sqrt(total_area * WebuiInpaintRatioHook.ratio)
 
     bin_height = total_area / bin_width
     packed = False
@@ -212,7 +208,7 @@ def rearrange_images_and_mask(mask_panel, images, dead_space_color):
     return RearrangedImageData(mask_panel, rearranged_images, rearranged_mask)
 
 
-def emplace_back_images(arrangement_panel: MaskPanel, original_images, inpainted_images, p):
+def emplace_back_images(arrangement_panel: MaskPanel, original_images, inpainted_images, mask_blur):
     rearranged_images = []
 
     for img, inpainted in zip([original_images[0]]*len(inpainted_images), inpainted_images):
@@ -223,7 +219,7 @@ def emplace_back_images(arrangement_panel: MaskPanel, original_images, inpainted
         for initial, target in zip(arrangement_panel.cropped_masks, arrangement_panel.rearranged_masks):
             inpaint_region = np.rot90(inpainted[target.area], k=-1) if target.rotated else inpainted[target.area]
             mask_region = np.rot90(target.mask, k=-1) if target.rotated else target.mask
-            mask_region = blur(mask_region, p.mask_blur)
+            mask_region = blur(mask_region, mask_blur)
             inpaint_region = mask_interpolation(mask_region, img[initial.area], inpaint_region).astype(np.uint8)
             img[initial.area] = inpaint_region
 

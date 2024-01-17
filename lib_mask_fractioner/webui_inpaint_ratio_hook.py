@@ -14,6 +14,7 @@ class WebuiInpaintRatioHook:
 
         if elem_id == 'img2img_height':
             cls.height_slider = component
+            cls.ratio = cls.width_slider.value / cls.height_slider.value
 
         if elem_id == 'img2img_scale':
             cls.scale_slider = component
