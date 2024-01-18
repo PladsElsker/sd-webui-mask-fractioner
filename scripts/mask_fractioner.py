@@ -32,17 +32,19 @@ class MaskFractionerScript(scripts.Script):
 
         if not self._is_mask_valid():
             return
-
+        
+        should_invert_mask = MaskFractionerGlobals.img2img_mask_mode==1
         should_minimize_dead_space = MaskFractionerGlobals.fill_dead_space_with=="Original"
 
         self.rearranged_image_data = fracture_images(
             images=p.init_images,
-            mask=p.image_mask,
+            mask=self.mask,
             padding=MaskFractionerGlobals.padding,
             components_margin=MaskFractionerGlobals.margin,
             allow_rotations=MaskFractionerGlobals.allow_rotations,
             dead_space_color=MaskFractionerGlobals.dead_space_color,
-            minimize_dead_space=should_minimize_dead_space
+            minimize_dead_space=should_minimize_dead_space,
+            invert_mask=should_invert_mask,
         )
         p.init_images, p.image_mask = self.rearranged_image_data.images, self.rearranged_image_data.mask
 

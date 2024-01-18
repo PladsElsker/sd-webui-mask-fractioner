@@ -1,4 +1,6 @@
 class MaskFractionerGlobals:
+    img2img_mask_mode = "Inpaint not masked"
+
     enabled = False
     padding = 0
     margin = 0

@@ -34,8 +34,8 @@ class WebuiInpaintRatioHook:
         }
 
         cls.resize_to_tab.select(**resize_to_event_params)
-        cls.width_slider.release(**resize_to_event_params)
-        cls.height_slider.release(**resize_to_event_params)
+        cls.width_slider.change(**resize_to_event_params)
+        cls.height_slider.change(**resize_to_event_params)
 
         resize_by_event_params = {
             'fn': lambda: set_ratio(None),

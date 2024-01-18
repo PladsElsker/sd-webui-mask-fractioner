@@ -6,9 +6,10 @@ from .globals import MaskFractionerGlobals
 
 
 class MaskFractionerParams(OperationMode):
-    requested_elem_ids = ["img2img_inpaint_full_res", "img2img_inpaint_full_res_padding"]
+    requested_elem_ids = ["img2img_inpaint_full_res", "img2img_inpaint_full_res_padding", "img2img_mask_mode"]
     
     def section(self, components):
+        self.img2img_mask_mode = components["img2img_mask_mode"]
         self.inpaint_full_res = components["img2img_inpaint_full_res"]
         self.only_masked_components = [self.inpaint_full_res, components["img2img_inpaint_full_res_padding"]]
 
@@ -70,6 +71,7 @@ class MaskFractionerParams(OperationMode):
             outputs=[]
         )
         
+        self.img2img_mask_mode.change(**set_global_value_dict, inputs=[gr.State("img2img_mask_mode"), self.img2img_mask_mode])
         self.enabled.change(**set_global_value_dict, inputs=[gr.State("enabled"), self.enabled])
         self.padding.change(**set_global_value_dict, inputs=[gr.State("padding"), self.padding])
         self.padding.release(**set_global_value_dict, inputs=[gr.State("padding"), self.padding])

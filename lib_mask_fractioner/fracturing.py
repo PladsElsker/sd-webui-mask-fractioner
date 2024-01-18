@@ -59,7 +59,7 @@ class RearrangedImageData:
     mask: Image
 
 
-def fracture_images(images, mask, padding, components_margin, allow_rotations, dead_space_color, minimize_dead_space):
+def fracture_images(images, mask, padding, components_margin, allow_rotations, dead_space_color, minimize_dead_space, invert_mask):
     mask_panel = compute_mask_cca(mask)
     compute_crops(mask_panel, padding)
     compute_rearrangement(mask_panel, components_margin, allow_rotations)
