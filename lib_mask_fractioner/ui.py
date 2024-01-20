@@ -1,5 +1,7 @@
 import gradio as gr
 
+from modules.ui_components import InputAccordion
+
 from sdwi2iextender import OperationMode, register_operation_mode
 
 from .globals import MaskFractionerGlobals
@@ -10,11 +12,10 @@ class MaskFractionerParams(OperationMode):
     
     def section(self, components):
         self.img2img_mask_mode = components["img2img_mask_mode"]
-        self.inpaint_full_res = components["img2img_inpaint_full_res"]
-        self.only_masked_components = [self.inpaint_full_res, components["img2img_inpaint_full_res_padding"]]
+        self.img2img_inpaint_full_res = components["img2img_inpaint_full_res"]
+        self.img2img_inpaint_full_res_padding = components["img2img_inpaint_full_res_padding"]
 
-        with gr.Accordion('Mask Fractioner', open=False):
-            self.enabled = gr.Checkbox(label='Enabled', default=False)
+        with InputAccordion(False, label='Mask Fractioner') as self.enabled:
             with gr.Group(visible=False) as self.params_group:
                 self.allow_rotations = gr.Checkbox(label='Allow rotations')
                 with gr.Row():
@@ -31,9 +32,37 @@ class MaskFractionerParams(OperationMode):
                         self.dead_space_color = gr.ColorPicker(label='Color', visible=False)
     
     def gradio_events(self, _):
-        self._toggle_visibility()
+        self._toggle_ui_params()
+        self._toggle_only_masked()
+        self._toggle_color_picker()
         self._update_globals()
 
+    def _toggle_ui_params(self):
+        self.enabled.change(
+            fn=lambda enabled: gr.update(visible=enabled),
+            inputs=[self.enabled],
+            outputs=[self.params_group]
+        )
+
+    def _toggle_only_masked(self):
+        def handle_only_masked_visibility(enabled):
+            choices = [choice_tupple[0] for choice_tupple in self.img2img_inpaint_full_res.choices]
+            choice_id = 0 if enabled else getattr(MaskFractionerGlobals, "img2img_inpaint_full_res_restore", 0)
+            return gr.update(visible=not enabled, value=choices[choice_id]), gr.update(visible=not enabled)
+
+        self.enabled.change(
+            fn=handle_only_masked_visibility,
+            inputs=[self.enabled],
+            outputs=[self.img2img_inpaint_full_res, self.img2img_inpaint_full_res_padding]
+        )
+
+        self.img2img_inpaint_full_res.input(
+            fn=lambda value: setattr(MaskFractionerGlobals, "img2img_inpaint_full_res_restore", value),
+            inputs=[self.img2img_inpaint_full_res],
+            outputs=[]
+        )
+
+    def _toggle_color_picker(self):
         SHOW_COLOR_PICKER_VALUE = "Unified color"
         self.fill_dead_space_with.change(
             fn=lambda radio_value: gr.update(visible=radio_value==SHOW_COLOR_PICKER_VALUE),
@@ -41,30 +70,6 @@ class MaskFractionerParams(OperationMode):
             outputs=[self.dead_space_color]
         )
 
-    def _toggle_visibility(self):
-        def handle_only_masked_visibility(enabled):
-            choices = [choice_tupple[0] for choice_tupple in self.inpaint_full_res.choices]
-            choice_id = 0 if enabled else getattr(MaskFractionerGlobals, "img2img_inpaint_full_res_restore", 0)
-            return gr.update(visible=not enabled, value=choices[choice_id]), gr.update(visible=not enabled)
-
-        self.enabled.change(
-            fn=handle_only_masked_visibility,
-            inputs=[self.enabled],
-            outputs=self.only_masked_components
-        )
-
-        self.enabled.change(
-            fn=lambda enabled: gr.update(visible=enabled),
-            inputs=[self.enabled],
-            outputs=[self.params_group]
-        )
-
-        self.inpaint_full_res.input(
-            fn=lambda value: setattr(MaskFractionerGlobals, "img2img_inpaint_full_res_restore", value),
-            inputs=[self.inpaint_full_res],
-            outputs=[]
-        )
-    
     def _update_globals(self):
         set_global_value_dict = dict(
             fn=lambda k, v: setattr(MaskFractionerGlobals, k, v),
