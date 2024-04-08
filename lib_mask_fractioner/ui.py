@@ -3,19 +3,22 @@ import gradio as gr
 from modules.ui_components import InputAccordion
 
 from sdwi2iextender import OperationMode, register_operation_mode
-
 from .globals import MaskFractionerGlobals
 
 
 class MaskFractionerParams(OperationMode):
     requested_elem_ids = ["img2img_inpaint_full_res", "img2img_inpaint_full_res_padding", "img2img_mask_mode"]
     
+    def tab(self):
+        self.tab = gr.TabItem(label="", visible=False).unrender()
+
     def section(self, components):
         self.img2img_mask_mode = components["img2img_mask_mode"]
         self.img2img_inpaint_full_res = components["img2img_inpaint_full_res"]
         self.img2img_inpaint_full_res_padding = components["img2img_inpaint_full_res_padding"]
 
         with InputAccordion(False, label='Mask Fractioner') as self.enabled:
+            self.tab.render()
             with gr.Group(visible=False) as self.params_group:
                 self.allow_rotations = gr.Checkbox(label='Allow rotations')
                 with gr.Row():
@@ -31,7 +34,7 @@ class MaskFractionerParams(OperationMode):
                     with gr.Column():
                         self.dead_space_color = gr.ColorPicker(label='Color', visible=False)
     
-    def gradio_events(self, _):
+    def gradio_events(self, *_):
         self._toggle_ui_params()
         self._toggle_only_masked()
         self._toggle_color_picker()

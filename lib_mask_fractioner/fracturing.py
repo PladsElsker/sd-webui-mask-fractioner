@@ -4,8 +4,7 @@ from typing import Sequence, Optional
 
 import cv2
 import numpy as np
-import torch
-from PIL import Image
+from PIL import Image, ImageChops
 
 from rectpack import newPacker, PackingBin
 
@@ -63,7 +62,11 @@ def fracture_images(images, mask, padding, components_margin, allow_rotations, d
     mask_panel = compute_mask_cca(mask)
     compute_crops(mask_panel, padding)
     compute_rearrangement(mask_panel, components_margin, allow_rotations)
-    return rearrange_images_and_mask(mask_panel, images, dead_space_color)
+    rearranged_image_data = rearrange_images_and_mask(mask_panel, images, dead_space_color)
+    if invert_mask:
+        rearranged_image_data.mask = ImageChops.invert(rearranged_image_data.mask)
+    
+    return rearranged_image_data
 
 
 def compute_mask_cca(mask):
@@ -71,7 +74,7 @@ def compute_mask_cca(mask):
     binary_image = cv2.threshold(image_array, 128, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)[1]
     num_masks, labels = cv2.connectedComponents(binary_image)
 
-    mask_crops = []
+    component_masks = []
     for i in range(num_masks):
         # skip backgrounds
         if binary_image[labels == i][0] == 0:
@@ -80,9 +83,9 @@ def compute_mask_cca(mask):
         component_mask = np.zeros_like(binary_image, dtype=np.uint8)
         component_mask[labels == i] = 255
         mask_data = MaskData(component_mask)
-        mask_crops.append(mask_data)
+        component_masks.append(mask_data)
 
-    return MaskPanel(mask_crops)
+    return MaskPanel(component_masks)
 
 
 def compute_crops(mask_panel, padding):
