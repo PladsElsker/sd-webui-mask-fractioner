@@ -6,7 +6,7 @@ if not launch.is_installed('rectpack'):
     launch.run_pip(f'install rectpack', f"rectpack for sd-webui-mask-fractioner")
 
 
-minimum_sdwi2iextender_version = "0.1.0"
+minimum_sdwi2iextender_version = "0.1.1"
 if not launch.is_installed('sdwi2iextender'):
     launch.run_pip(f'install sdwi2iextender', f"sdwi2iextender for sd-webui-inpaint-difference")
 else:

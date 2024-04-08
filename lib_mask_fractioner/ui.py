@@ -8,9 +8,6 @@ from .globals import MaskFractionerGlobals
 
 class MaskFractionerParams(OperationMode):
     requested_elem_ids = ["img2img_inpaint_full_res", "img2img_inpaint_full_res_padding", "img2img_mask_mode"]
-    
-    def tab(self):
-        self.tab = gr.TabItem(label="", visible=False).unrender()
 
     def section(self, components):
         self.img2img_mask_mode = components["img2img_mask_mode"]
@@ -18,7 +15,6 @@ class MaskFractionerParams(OperationMode):
         self.img2img_inpaint_full_res_padding = components["img2img_inpaint_full_res_padding"]
 
         with InputAccordion(False, label='Mask Fractioner') as self.enabled:
-            self.tab.render()
             with gr.Group(visible=False) as self.params_group:
                 self.allow_rotations = gr.Checkbox(label='Allow rotations')
                 with gr.Row():
